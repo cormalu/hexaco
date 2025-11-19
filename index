@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Card Game</title>
+    <style>
+        body {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+:root {
+    --selected-bg: #729cc4; /* Blue for selected/resonant */
+    --darkened-selected-bg: #0f5f85; /* Dark blue for strengthened selected */
+    --selected-border: #f8f7f5; /* Light grey border for selected */
+    --rejected-bg: #ec98da; /* Pink for rejected/non-resonant */
+    --darkened-rejected-bg: #be3ccf; /* Dark pink for strengthened rejected */
+    --rejected-border: #fafdfa; /* Near-white border for rejected */
+}
+#strengthen-instruction {
+    position: absolute;
+    top: calc(50% + 150px); /* Adjusted to be below dropped cards (240px height / 2 + drop 20px + margin) */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 22px;
+    color: #333;
+    text-align: center;
+    white-space: nowrap;
+    display: none;
+    z-index: 1000;
+}
+#strengthen-instruction.dynamic {
+    font-size: 22px;
+    color: #333;
+    text-align: center;
+    white-space: nowrap;
+    z-index: 1000;
+}
+#instruction {
+    font-size: 18px;
+    font-weight: bold;
+    max-width: 600px;
+    text-align: center;
+    white-space: pre-wrap;
+    background-color: transparent;
+    padding: 0;
+    position: absolute;
+    top: -25%;
+    left: calc(50% + 140px);
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+}
+#card-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    position: relative;
+    left: 140px; /* Shift 1.5 card widths (240px) to the right toward grey bricks */
+}
+.selected-card {
+    transform: translateY(20px) scale(0.9);
+    transition: transform 0.3s ease-in-out;
+    font-size: 14.4px; /* 90% of original 16px */
+    border: 3px solid;
+    box-sizing: border-box;
+}
+.selected-card.selected {
+    border-color: var(--selected-border);
+}
+.selected-card.rejected {
+    border-color: var(--rejected-border);
+}
+#card-container .selected-card.darkened .front {
+    font-weight: bold;
+    color: greenyellow !important;
+}
+#card-container .selected-card.darkened.selected .front {
+    background-color: var(--darkened-selected-bg) !important;
+}
+#card-container .selected-card.darkened.rejected .front {
+    background-color: var(--darkened-rejected-bg) !important;
+}
+#card-container .selected-card.selected .front {
+    background-color: var(--selected-bg) !important;
+}
+#card-container .selected-card.rejected .front {
+    background-color: var(--rejected-bg) !important;
+}
+.card-wrapper {
+    width: 160px; /* Smaller width */
+    height: 240px; /* Smaller height */
+    position: relative;
+}
+.front {
+    background: white;
+    transform: rotateY(180deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px; /* Adjusted font size for smaller cards */
+    text-align: center;
+    padding: 15px;
+    box-sizing: border-box;
+}
+        .card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+            cursor: pointer;
+        }
+        .back, .front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            transition: transform 0.5s ease-in-out;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .back {
+background: repeating-linear-gradient(
+        60deg,
+        #1e90ff, /* Light blue base */
+        #1e90ff 13px,
+        #24588c 10px, /* Darker blue for pattern */
+        #104e8b 20px
+    ); /* Playing card texture: diagonal stripes */
+            transform: rotateY(0deg);
+        }
+        .front {
+            background: white;
+            transform: rotateY(180deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+#card-container.rejected-phase .front {
+    background-color: var(--rejected-bg);
+}
+#card-container.selected-phase .front {
+    background-color: var(--selected-bg);
+        }
+        .flipped .back {
+            transform: rotateY(180deg);
+        }
+        .flipped .front {
+            transform: rotateY(0deg);
+        }
+        .slide-down {
+            transform: translateY(100vh);
+            opacity: 0;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+        .slide-up {
+            transform: translateY(-100vh);
+            opacity: 0;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+        .selected {
+            border: 4px solid green;
+        }
+#progress-container {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none; /* Hidden initially */
+    grid-template-columns: repeat(5, 40px); /* 5 columns wide for 4 rows of 5 when full */
+    gap: 10px; /* Increased spacing between rows and columns */
+    width: 240px; /* Adjusted for 5 columns of 40px + gaps */
+    background-color: transparent;
+}
+#selected-container {
+    position: absolute;
+    top: calc(50% - 277px);
+    left: 10px;
+    width: 550px;
+    max-height: 96px;
+    display: none; /* Hidden initially */
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    gap: 4px;
+}
+#rejected-container {
+    position: absolute;
+    left: 10px;
+    top: calc(50% + 247px);
+    width: 950px;
+    max-height: 96px;
+    display: none; /* Hidden initially */
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    gap: 4px;
+    z-index: 500;
+}
+#neither-container {
+    position: absolute;
+    right: 10px;
+    top: calc(50% - 277px);
+    width: 220px;
+    height: auto;
+    display: none; /* Hidden initially */
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    gap: 4px;
+    overflow: visible;
+}
+.progress-icon {
+    width: 40px; /* Narrower width for vertical orientation */
+    height: 70px; /* Taller height for vertical card-like stack */
+    background: repeating-linear-gradient(
+        60deg,
+        #1e90ff,
+        #1e90ff 6.5px, /* Finer stripes */
+        #24588c 5px,
+        #104e8b 10px
+    );
+    background-size: 10px 10px; /* Finer pattern repeat */
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.1); /* Simulates slight overlap/shadow for stack effect */
+}
+.progress-icon::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    background-size: inherit;
+    border-radius: 4px;
+    opacity: 0.5; /* Semi-transparent to show as overlapping card */
+    z-index: -1; /* Behind main icon for stack look */
+}
+.progress-icon:hover::after {
+    content: "Hand of cards";
+    position: absolute;
+    background-color: #333;
+    color: white;
+    padding: 5px;
+    border-radius: 5px;
+    top: -40px; /* Adjusted for taller icon */
+    left: 0;
+    white-space: nowrap;
+    z-index: 1000;
+}
+.selected-icon {
+    width: 40px;
+    height: 20px;
+    background-color: var(--selected-bg); /* Orange for selected brick */
+    border-radius: 4px;
+    margin: 2px;
+    box-sizing: border-box;
+    position: relative; /* Ensure dot positions relative to brick */
+}
+.selected-icon.darkened {
+    background-color: var(--darkened-selected-bg); /* Dark orange for strengthened selected */
+}
+.rejected-icon {
+    width: 40px;
+    height: 20px;
+    background-color: var(--rejected-bg); /* Light green for rejected brick */
+    margin: 2px;
+    border-radius: 4px;
+    box-sizing: border-box;
+    position: relative; /* Ensure dot positions relative to brick */
+}
+.rejected-icon.darkened {
+    background-color: var(--darkened-rejected-bg); /* Dark green for strengthened rejected */
+}
+        .neither-icon {
+            width: 40px;
+            height: 20px;
+            background-color: #D3D3D3;
+            margin: 2px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            background-image: linear-gradient(45deg, rgba(0,0,0,0.1) 25%, transparent 25%, transparent 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1) 75%, transparent 75%, transparent);
+            background-size: 4px 4px;
+            position: relative; /* Ensure dot positions relative to brick */
+        }
+        .hidden {
+            display: none;
+        }
+        .temp-icon {
+            position: fixed;
+            z-index: 1000;
+            transition: left 0.5s ease-in-out, top 0.5s ease-in-out, width 0.5s ease-in-out, height 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            pointer-events: none;
+            display: block;
+        }
+#undo-button {
+    position: absolute;
+    top: -20%;
+    left: calc(50% - 150px);
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: bold;
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+    display: none;
+}
+        #auto-progress {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: -100px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            background-color: #ddd;
+            border: none;
+            cursor: pointer;
+        }
+        #results-container {
+            display: none;
+            font-size: 16px;
+            font-family: monospace;
+            justify-content: left;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+            text-align: left;
+        }
+        #timer-canvas {
+            margin: 10px;
+            position: absolute;
+            top: calc(50% - 230px); /* Higher to be above instruction */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: block;
+            cursor: pointer; /* Indicate clickability */
+        }
+        #timer-label {
+            font-size: 14px;
+            color: #000;
+            position: absolute;
+            top: calc(50% - 260px); /* Above timer */
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+        }
+        #continue-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            position: absolute;
+            top: calc(50% + 120px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1200;
+            display: none;
+        }
+        .clickable {
+            cursor: pointer;
+            position: relative;
+        }
+.rejected-icon.darkened {
+    background-color: var(--darkened-rejected-bg); /* Dark green for strengthened rejected */
+}
+.selected-icon.darkened {
+    background-color: var(--darkened-selected-bg); /* Dark orange for strengthened selected */
+}
+.tooltip {
+    position: absolute;
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #000;
+    padding: 5px;
+    border-radius: 5px;
+    top: -30px; /* Aligned with blue brick tooltip */
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.2s ease-in 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+}
+.rejected-icon.darkened .tooltip, .selected-icon.darkened .tooltip {
+    font-weight: bold;
+}
+.rejected-icon:hover .tooltip,
+.selected-icon:hover .tooltip {
+    left: 0; /* Left-justified for red and green bricks */
+    text-align: left;
+    opacity: 1;
+}
+#neither-container .tooltip {
+    right: 0 !important;
+    text-align: right !important;
+    left: auto !important;
+    color: #808080 !important;
+}
+#neither-container :hover .tooltip {
+    opacity: 1;
+}
+#selected-container .neither-icon .tooltip,
+#rejected-container .neither-icon .tooltip,
+#neither-container .neither-icon .tooltip {
+    color: #808080 !important; /* Mid-grey for grey brick tooltips */
+}
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="progress-container"></div>
+        <div id="selected-container"></div>
+        <div id="instruction"></div>
+<div id="card-container" class="hidden" style="display: none;">
+    <div id="strengthen-instruction">Click AGAIN on an already selected card to strengthen it</div>
+    <!-- Cards will be dynamically created after the second "Continue" click -->
+     </div>
+
+<button id="reverse-button" style="position: absolute; top: -20%; left: calc(50% + 50px); padding: 10px 20px; border-radius: 20px;
+font-size: 16px; font-weight: bold; background-color: #FFA500; border: none; cursor: pointer;
+display: none; z-index: 1000;">Reverse Sentiment</button>
+<button id="auto-progress" style="position: absolute; left: 50%; transform: translateX(-50%); bottom: -200px; padding: 5px 15px; border-radius: 14px; font-size: 10px; background-color: #ddd; border: none; cursor: pointer;">Auto Progress</button>
+<button id="continue-button">Continue</button>
+<button id="copy-button" style="display: none; padding: 10px 20px; font-size: 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; border-radius: 5px; position: absolute; top: calc(50% + 180px); left: 50%; transform: translateX(-50%); z-index: 1200;">Click to Copy Results</button>
+        <div id="rejected-container"></div>
+        <div id="neither-container"></div>
+    </div>
+    <div id="results-container"></div>
+    <script>
+        // Hard-coded text and parameters
+const QUESTIONS_DATA = [
+"I would be quite bored by a visit to an art gallery. | I would be engrossed by a visit to an art gallery. | aa",
+"I clean my office or home quite frequently. | I am quite happy to not clean my home or office for a long time. | or",
+"I rarely hold a grudge, even against people who have badly wronged me. | If someone wrongs me I will remember and get them back. | fo",
+"I feel reasonably satisfied with myself overall. | I am not satisfied with who I am and what I have achieved. | ss",
+"I would feel afraid if I had to travel in bad weather conditions. | I would not be at all disturbed to travel in bad weather. | fe",
+"If I want something from a person I dislike, I will act very nicely toward that person in order to get it. | I could not act nicely to someone I disliked even if I needed something from them. | si",
+"I'm interested in learning about the history and politics of other countries. | I have no interest in the history or politics of places. | iq",
+"When working, I often set ambitious goals for myself. | I don't like to stretch myself with hard to achieve goals. | di",
+"People sometimes tell me that I am too critical of others. | People tell me I go too easy on others. | ge",
+"I rarely express my opinions in group meetings. | I will usually speak my opinions is group meetings regardless of who is present. | sb",
+"I sometimes can't help worrying about little things. | I don't sweat the small stuff, little things don't bother me. | se",
+"If I knew that I could never get caught, I would be willing to steal a million dollars. | It is wrong to steal and I would never do it even if I was sure I wouldn't get caught. | fa",
+"I would like a job that requires following a routine rather than being creative . | A job with no creativity and that just follows routine would be awful. | cr",
+"I often check my work over repeatedly to find any mistakes. | I do my job and move on, I never go back and check. | pe",
+"People sometimes tell me that I'm too stubborn. | People sometimes tell me I give in too easily. | fl",
+"I avoid making small talk with people. | I am comfortable with others and usually what to say to put people at ease. | so",
+"When I suffer from a painful experience, I need someone to make me feel comfortable. | When I suffer a painful experience, I like to be alone to work it through. | in",
+"Having a lot of money is not especially important to me. | Money is important to having a good life. | ga",
+"I think that paying attention to radical ideas is a waste of time. | The best ideas are not usually the common ones, I follow the truth. | un",
+"I make decisions based on the feeling of the moment rather than on careful thought. | I think carefully about my decisions rather than react on impulse. | pr",
+"People think of me as someone who has a quick temper. | People see me as someone who is emotionally quite flat. | pa",
+"I am energetic nearly all the time. | I get tired easily and often need to rest. | li",
+"I feel like crying when I see other people crying. | I am unaffected by other peoples emotions. | st",
+"I am an ordinary person who is no better than others. | I am not like other people, I have special qualities. | mo",
+"I wouldn't spend my time reading a book of poetry. | Poetry has deep truths and it is important to read it sometimes. | aa",
+"I plan ahead and organize things, to avoid scrambling at the last minute. | I often find myself surprised because I haven't thought ahead. | or",
+"My attitude toward people who have treated me badly is forgive and forget. | If people treat me badly I will remember. | fo",
+"I think that most people like some aspects of my personality. | There is nothing in my personality for most people to like. | ss",
+"I don't mind doing jobs that involve dangerous work. | I would go out of my way to avoid dangerous work. | fe",
+"I wouldn't use flattery to get a raise or promotion at work, even if I thought it would succeed. | If flattery would help me achieve my goals, I would not hesitate to use it. | si",
+"I enjoy looking at maps of different places. | I would never pick up a map and look at it for fun. | iq",
+"I often push myself very hard when trying to achieve a goal. | Pushing myself too hard to achieve a goal is not something I would do. | di",
+"I generally accept people's faults without complaining about them. | When things go wrong because other screw up, it is important to say so. | ge",
+"In social situations, I'm usually the one who makes the first move. | In social situations I hang back and wait for others to speak first. | sb",
+"I worry a lot less than most people do. | I worry a lot more than other people do. | se",
+"I would be tempted to buy stolen property if I were financially tight. | If I suspected something was stolen, I would never buy it regardless of my need. | fa",
+"I would enjoy creating a work of art, such as a novel, a song, or a painting. | I have no interest in painting or writing or making works of art. | cr",
+"When working on something, I don't pay much attention to small details. | I am a big picture person, the details don't matter much to me. | pe",
+"I am usually quite flexible in my opinions when people disagree with me. | I have clear opinions, I expect other to come around to my point of view. | fl",
+"I enjoy having lots of people around to talk with. | Having many people to talk to is uncomfortable, I prefer just a few. | so",
+"I can handle difficult situations without needing emotional support from anyone else. | In difficult situations I need emotional support from others around me. | in",
+"I would like to live in a very expensive, high-class neighborhood. | I could live anywhere, rich or poor neighborhood is unimportant. | ga",
+"I like people who have unconventional views. | People with unconventional views make me very uncomfortable. | un",
+"I make a lot of mistakes because I don't think before I act. | I think before I act and get things right most of the time. | pr",
+"I rarely feel anger, even when people treat me quite badly. | I am quick to anger when I think someone has wronged me. | pa",
+"On most days, I feel cheerful and optimistic. | On most days I feel unhappy and pessimistic. | li",
+"When someone I know well is unhappy, I can almost feel that person's pain myself. | My mood is pretty independent of those around me, even if they are close. | st",
+"I wouldn't want people to treat me as though I were superior to them. | I usually bring more to the situation than others and therefore deserve more respect. | mo",
+"If I had the opportunity, I would like to attend a classical music concert. | Being asked to attend a classical musical concert would be very unpleasant. | aa",
+"People often joke with me about the messiness of my room or desk. | People often joke that I am a neat freak. | or",
+"If someone has cheated me once, I will always feel suspicious of that person. | If someone cheats on me once, I find it easy to forgive them and move on. | fo",
+"I feel that I am an unpopular person. | I feel that I am quite a popular person. | ss",
+"When it comes to physical danger, I am very fearful. | I enjoy putting myself into physical danger sometimes. | fe",
+"If I want something from someone, I will laugh at that person's worst jokes. | Laughing at someones bad jokes to get something from them is wrong. | si",
+"I would be very bored by a book about the history of science and technology  . | A book about the history of science is something I would never voluntarily read. | iq",
+"Often when I set a goal, I end up quitting without having reached it. | When I set a goal, I tend to stick with it until I get to the end. | di",
+"I tend to be lenient in judging other people. | I am quite strict when judging other people. | ge",
+"When I'm in a group of people, I'm often the one who speaks on behalf of the group. | When I am in a group, I hate being picked out as the spokesperson. | sb",
+"I rarely, if ever, have trouble sleeping due to stress or anxiety. | I often cannot fall asleep and lie awake anxious and stressing. | se",
+"I would never accept a bribe, even if it were very large. | If someone offered me cash to help sway their case, I think that’s fair enough. | fa",
+"People have often told me that I have a good imagination. | People do not see me as a person with imagination. | cr",
+"I always try to be accurate in my work, even at the expense of time. | Accuracy is good, but meeting deadlines is much more important. | pe",
+"When people tell me that I'm wrong, my first reaction is to argue with them. | When people tell me I am wrong I am the first to doubt myself. | fl",
+"I prefer jobs that involve active social interaction to those that involve working alone. | I like to work things out on my own rather than try to fix things in a group. | so",
+"Whenever I feel worried about something, I want to share my concern with another person. | The last thing I want to do with a problem is share it with someone else. | in",
+"I would like to be seen driving around in a very expensive car. | I really don't care what others think about the car I am driving. | ga",
+"I think of myself as a somewhat eccentric person. | I like to fit in and try not to have weird behaviours. | un",
+"I don't allow my impulses to govern my behavior. | I like to go with the flow and follow my impulses. | pr",
+"Most people tend to get angry more quickly than I do. | I tend to anger more quickly than other people. | pa",
+"People often tell me that I should try to cheer up. | People remark that I am cheerful nearly all the time. | li",
+"I feel strong emotions when someone close to me is going away for a long time. | When somone close to me is going away, I can move on quickly to the next thing. | st",
+"I think that I am entitled to more respect than the average person is. | I am not entitled to more respect than anyone else is. | mo",
+"Sometimes I like to just watch the wind as it blows through the trees. | Sitting and watching the wind blow sounds very boring to me. | aa",
+"When working, I sometimes have difficulties due to being disorganized. | I am orgnised in my work and always know my next 2 or 3 tasks. | or",
+"I find it hard to fully forgive someone who has done something mean to me. | If someone is mean to me I can forgive them easily. | fo",
+"I sometimes feel that I am a worthless person. | I am always aware of my value and never feel worthless. | ss",
+"Even in an emergency I wouldn't feel like panicking. | I am quite regularly on the verge of panicking. | fe",
+"I wouldn't pretend to like someone just to get that person to do favors for me. | I regularly pretend to like people to get things done more easily. | si",
+"I've never really enjoyed looking through an encyclopedia. | I would enjoy sitting down to leaf through and encyclopedia. | iq",
+"I do only the minimum amount of work needed to get by . | A job worth doing is worth doing well, I like to excel in all my jobs. | di",
+"Even when people make a lot of mistakes, I rarely say anything negative. | If people make a mistake it is important to point it out to them. | ge",
+"I tend to feel quite self-conscious when speaking in front of a group of people. | I enjoy presenting and speaking to groups, I feel no self-consciousness. | sb",
+"I get very anxious when waiting to hear about an important decision. | When a decision that affects me is out of my hands, I enjoy the anticipation. | se",
+"I'd be tempted to use counterfeit money, if I were sure I could get away with it. | I would neve use counterfeit money even if I thought I could get away with it. | fa",
+"I don't think of myself as the artistic or creative type. | I think of myself as quite artistic or creative. | cr",
+"People often call me a perfectionist. | People would be very unlikely to call me a perfectionist. | pe",
+"I find it hard to compromise with people when I really think I'm right. | I'm good at working with people to get to a compromise, life is dealmaking. | fl",
+"The first thing that I always do in a new place is to make friends. | I'm slow to make friends in a new place. | so",
+"I rarely discuss my problems with other people. | I often discuss my problems with other. | in",
+"I would get a lot of pleasure from owning expensive luxury goods. | I don't see the point in luxury goods. | ga",
+"I find it boring to discuss philosophy. | I find philosophy both important and fascinating. | un",
+"I prefer to do whatever comes to mind, rather than stick to a plan. | I like to have a plan an to stick to it. | pr",
+"I find it hard to keep my temper when people insult me. | I can laugh off insults without them affecting me much. | pa",
+"Most people are more upbeat and dynamic than I generally am. | People see me as being more upbeat and dynamic than everyone else. | li",
+"I remain unemotional even in situations where most people get very sentimental. | There are many situations which make me emotional and sentimental. | st",
+"I want people to know that I am an important person of high status. | I do not want people to think of me as of higher status in any way than others. | mo",
+"I have sympathy for people who are less fortunate than I am. | People who seem less fortunate usually have themselves to blame, I have no sympathy. | al",
+"I try to give generously to those in need. | Charity is usually a waste of time and money. | al",
+"It wouldn't bother me to harm someone I didn't like. | Hurting someone just because I didn't like them is wrong and I wouldn't do it. | al",
+"People see me as a hard-hearted person. | People see me as a caring and soft-hearted person. | al"
+];
+const CATEGORY_DATA = [
+{group: "HOH", category: "si", descriptor: "Sincerity", total: 4},
+{group: "HOH", category: "fa", descriptor: "Fairness", total: 4},
+{group: "HOH", category: "ga", descriptor: "greed avoidance", total: 4},
+{group: "HOH", category: "mo", descriptor: "Modesty", total: 4},
+{group: "EMS", category: "fe", descriptor: "Fearlessness", total: 4},
+{group: "EMS", category: "se", descriptor: "Serenity", total: 4},
+{group: "EMS", category: "in", descriptor: "independence", total: 4},
+{group: "EMS", category: "st", descriptor: "Stoicism", total: 4},
+{group: "EXT", category: "ss", descriptor: "Social Self-Esteem", total: 4},
+{group: "EXT", category: "sb", descriptor: "Social Boldness", total: 4},
+{group: "EXT", category: "so", descriptor: "Sociability", total: 4},
+{group: "EXT", category: "li", descriptor: "Liveliness", total: 4},
+{group: "AGR", category: "fo", descriptor: "Forgiveness", total: 4},
+{group: "AGR", category: "ge", descriptor: "Gentleness", total: 4},
+{group: "AGR", category: "fl", descriptor: "Flexibility", total: 4},
+{group: "AGR", category: "pa", descriptor: "Patience", total: 4},
+{group: "CON", category: "or", descriptor: "Organization", total: 4},
+{group: "CON", category: "di", descriptor: "Diligence", total: 4},
+{group: "CON", category: "pe", descriptor: "Perfectionism", total: 4},
+{group: "CON", category: "pr", descriptor: "Prudence", total: 4},
+{group: "OTE", category: "aa", descriptor: "Aesthetic Appreciation", total: 4},
+{group: "OTE", category: "iq", descriptor: "Inquisitiveness", total: 4},
+{group: "OTE", category: "cr", descriptor: "Creativity", total: 4},
+{group: "OTE", category: "un", descriptor: "Unconventionality", total: 4},
+{group: "ALT", category: "al", descriptor: "Altruism", total: 4}
+        ];
+        const STRENGTHEN_INSTRUCTION = document.getElementById('strengthen-instruction');
+        const SELECTED_DROP_DELAY = 800; // Delay in ms before animating selected cards to containers after 4th selection
+        const SELECTED_DROP_Y = '30px'; // Amount to drop selected cards
+        const SELECTED_SCALE = 0.9; // Shrink factor for selected cards
+        const SELECTED_FONT_SCALE = 0.9; // Font size scale factor (original front font-size is 16px)
+        const BORDER_WIDTH = '3px'; // Border width for selected cards
+        const TOTAL_QUESTIONS = 100; // Total number of questions in the game
+        const CARDS_PER_SET = 5; // Number of cards drawn per set
+        const ENCODED_DIGITS = 40;
+        const FINAL_LENGTH = 41;
+        // Color constants (orange for selected/resonant, light green for rejected)
+        const BASE = BigInt(58); // Base for encoding
+        const BASE58_DIGITS = '23456789ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'; // Digits for base58 encoding (excludes 0,1,l,O)
+        const INITIAL_PROMPT = `You are about to go through an interactive experience that will ask you some questions you may find very sensitive.\n
+This session is totally anonymous,
+your name is not recorded and no-one can see what you enter.\n
+At the end of the session you will get a results summary.
+This should give you insight into some of your deeper motivations and potential blockers to your learning.\n
+This can be very useful for your coach. It is up to you to forward your results at the end. If you take no action, all data is deleted\n
+To forward your results, just copy and paste your results summary at the end into an email and send it.\n
+The full session will take 20 to 30 minutes
+When you are ready to progress click continue\n\n\n\n\n\n\n\n`; // Initial prompt shown on load
+        const GAME_INTRO_INSTRUCTION =
+`You will soon be offered 47 card hands,
+Each hand has 5 cards,
+Each card has a statement.\n
+Choose the card that you identify with most.\n
+Try clicking 'Reverse Sentiment' to see the opposite statements.
+Play with Reversing Sentiment and choosing cards until 4 cards are chosen. You can Undo your last pick at any time.\n
+If a statement really resonates with you,
+click on an already selected card again to strengthen it.
+The 5th card in any set goes "grey" automatically (unsure)\n
+When you are ready to start click continue\n\n\n\n\n\n`; // Introduction to game mechanics
+const MSG_NO_CARDS = "Choose 4 cards, pick the first card most like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+const MSG_ONE_CARD = "Choose 3 more cards, pick a second card that is like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+const MSG_TWO_CARDS = "Two more cards to select, pick another card that resembles you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+const MSG_THREE_CARDS = "Pick one more card, the remaining card will be unselected\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+        const BEGIN_GAME_INSTRUCTION = "Click continue to begin the game"; // Prompt after intro
+        const CLICK_ANY_CARD = " Click any card to begin\n\n\n\n"; // Prompt to start selecting
+        const ALL_SETS_COMPLETED_INSTRUCTION = "All sets completed! Click Continue to proceed to the next phase."; // End of selection phase
+        const UPDATE_RED_INSTRUCTION = "You have completed the first phase of the game.\nYou likely had to choose some cards (both red and green) that you felt more strongly than others.The grey cards were what was left, probably most of these are in-between.\n\nThe next section lets you change some of those cards.\n\nWhen you click below, a 2 minute timer will appear.\n\nYou can now hover your mouse over any red card, you will see the statement you chose. You can click to strengthen that card (darker red) or to weaken it (grey).\n\nYou can click as many bricks as you like during the 2 minute period.\nPlease click on Continue when you are ready."; // Instruction for red update phase
+        const UPDATE_GREEN_INSTRUCTION = "Thank you for updating your red bricks.\nNow please update your green bricks in the same way.\n\nEach green brick represents a card you have chosen that resonates with you. If you want to change your choice, click to change to red -- or grey if not sure.\n\nPlease click on Continue when you are ready."; // Instruction for green update phase
+        const UPDATE_GREY_INSTRUCTION = "Now you will have 2 minutes to update your grey bricks. These represent the cards that you neither rejected or selected.\n\nClick on any grey brick to change it to green, and again to change it to red.\n\nPlease click on Continue when you are ready."; // Instruction for grey update phase
+        const RESULTS_HTML = '<h2>Results</h2><pre></pre>'; // Initial HTML for results container
+        const ALLSELECTIONS_TEST = ''; // 100-digit string of digits 0-4 for testing encoding (0: dark rejected, 1: light rejected, 2: grey, 3: light selected, 4: dark selected)
+        const COPY_SUCCESS_MESSAGE = 'Results copied to clipboard!'; // Alert on successful copy
+        const COPY_FAIL_MESSAGE = 'Failed to copy results.'; // Alert on failed copy
+        const questionsData = QUESTIONS_DATA;
+        const categoryData = CATEGORY_DATA;
+        const REVERSED_ITEMS = new Set([1,5,6,9,10,11,12,13,15,16,17,19,20,21,23,25,36,38,42,44,47,50,51,52,53,54,55,56,63,65,66,70,71,72,74,75,76,79,80,82,83,84,85,87,90,91,92,93,94,96,99,100]);
+        const questionsByCategory = {};
+        questionsData.forEach(line => {
+            const [question, opposite, category] = line.split('|').map(s => s.trim());
+            if (question && category) {
+                if (!questionsByCategory[category]) {
+                    questionsByCategory[category] = [];
+                }
+                questionsByCategory[category].push({ question, opposite });
+            }
+        });
+        const selectedSelections = {};
+        const rejectedSelections = {};
+        const allSelections = [];
+        const remainingQuestionsByCategory = JSON.parse(JSON.stringify(questionsByCategory));
+        categoryData.forEach(({category}) => {
+            selectedSelections[category] = 0;
+            rejectedSelections[category] = 0;
+        });
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+const totalSets = Math.floor(TOTAL_QUESTIONS / CARDS_PER_SET);
+let currentSetIndex = 0;
+let selectedCards = [];
+let removeFromTop = true;
+let isFlipped = false;
+let selectionCount = 0;
+let isAnimating = false;
+let updatePhase = null;
+let timerInterval = null;
+let cards = [];
+const instruction = document.getElementById('instruction');
+const progressContainer = document.getElementById('progress-container');
+const continueButton = document.getElementById('continue-button');
+const reverseButton = document.getElementById('reverse-button');
+const allQuestions = [];
+for (const category in questionsByCategory) {
+    allQuestions.push(...questionsByCategory[category].map(q => ({ text: q.question, opposite: q.opposite, category })));
+}
+shuffle(allQuestions);
+// Delay creation of blue bricks until second "Continue" click
+function getNextSet() {
+    const availableQuestions = [];
+    for (const category in remainingQuestionsByCategory) {
+        availableQuestions.push(...remainingQuestionsByCategory[category].map(q => ({ text: q.question, opposite: q.opposite, category })));
+    }
+    if (availableQuestions.length < CARDS_PER_SET && availableQuestions.length > 0) {
+        return availableQuestions.splice(0, availableQuestions.length);
+    }
+    if (availableQuestions.length === 0) return null;
+    shuffle(availableQuestions);
+    const set = [];
+    const availableCategories = Object.keys(remainingQuestionsByCategory).filter(c => remainingQuestionsByCategory[c].length > 0);
+    if (availableCategories.length >= CARDS_PER_SET) {
+        const affinity = {};
+        for (const category in remainingQuestionsByCategory) {
+            const selected = selectedSelections[category] || 0;
+            const rejected = rejectedSelections[category] || 0;
+            affinity[category] = selected - rejected;
+        }
+        let possibleQuintets = [];
+        for (let i = 0; i < availableCategories.length; i++) {
+            for (let j = i + 1; j < availableCategories.length; j++) {
+                for (let k = j + 1; k < availableCategories.length; k++) {
+                    for (let m = k + 1; m < availableCategories.length; m++) {
+                        for (let n = m + 1; n < availableCategories.length; n++) {
+                            const quintet = [availableCategories[i], availableCategories[j], availableCategories[k], availableCategories[m], availableCategories[n]];
+                            const score = Math.abs(affinity[quintet[0]] - affinity[quintet[1]]) +
+                                          Math.abs(affinity[quintet[0]] - affinity[quintet[2]]) +
+                                          Math.abs(affinity[quintet[0]] - affinity[quintet[3]]) +
+                                          Math.abs(affinity[quintet[0]] - affinity[quintet[4]]) +
+                                          Math.abs(affinity[quintet[1]] - affinity[quintet[2]]) +
+                                          Math.abs(affinity[quintet[1]] - affinity[quintet[3]]) +
+                                          Math.abs(affinity[quintet[1]] - affinity[quintet[4]]) +
+                                          Math.abs(affinity[quintet[2]] - affinity[quintet[3]]) +
+                                          Math.abs(affinity[quintet[2]] - affinity[quintet[4]]) +
+                                          Math.abs(affinity[quintet[3]] - affinity[quintet[4]]);
+                            possibleQuintets.push({quintet, score});
+                        }
+                    }
+                }
+            }
+        }
+        if (possibleQuintets.length > 0) {
+            possibleQuintets.sort((a, b) => b.score - a.score);
+            const bestQuintet = possibleQuintets[0].quintet;
+            for (const category of bestQuintet) {
+                const questions = remainingQuestionsByCategory[category];
+                const idx = Math.floor(Math.random() * questions.length);
+                const question = questions.splice(idx, 1)[0];
+                set.push({ text: question.question, opposite: question.opposite, category });
+            }
+            return set;
+        }
+    }
+    for (let i = 0; i < CARDS_PER_SET && availableQuestions.length > 0; i++) {
+        const question = availableQuestions.shift();
+        set.push(question);
+        remainingQuestionsByCategory[question.category] = remainingQuestionsByCategory[question.category].filter(q => q.question !== question.text);
+    }
+    return set;
+}
+function animateCardToContainer(card, containerId, iconClass, text, opposite, category, callback, isDarkened = false) {
+    console.log(`animateCardToContainer: Adding ${iconClass} to ${containerId}, text=${text}, category=${category}`);
+    const initialRect = card.getBoundingClientRect();
+    const frontClone = card.querySelector('.front').cloneNode(true);
+    frontClone.className = 'temp-icon';
+    frontClone.style.left = initialRect.left + 'px';
+    frontClone.style.top = initialRect.top + 'px';
+    frontClone.style.width = initialRect.width + 'px';
+    frontClone.style.height = initialRect.height + 'px';
+    frontClone.style.opacity = '1';
+    document.body.appendChild(frontClone);
+    const actualIcon = document.createElement('div');
+    actualIcon.className = iconClass;
+    if (isDarkened && iconClass !== 'neither-icon') {
+        actualIcon.classList.add('darkened');
+    }
+    actualIcon.dataset.tooltip = iconClass === 'rejected-icon' ? opposite : text;
+    actualIcon.dataset.opposite = opposite;
+    actualIcon.dataset.category = category;
+    actualIcon.dataset.text = text;
+    actualIcon.style.visibility = 'hidden';
+    const container = document.getElementById(containerId);
+    container.appendChild(actualIcon);
+    // Add tooltip for red, green, and grey bricks
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = actualIcon.dataset.tooltip;
+    actualIcon.appendChild(tooltip);
+    // Add click listener with full behavior
+    let lastClickTime = 0;
+    const debounceDelay = 200;
+    actualIcon.addEventListener('click', () => {
+        const now = Date.now();
+        if (now - lastClickTime < debounceDelay) return;
+        lastClickTime = now;
+        const currentContainerId = actualIcon.parentNode.id;
+        const currentText = actualIcon.dataset.text;
+        const currentOpposite = actualIcon.dataset.opposite;
+        const currentCategory = actualIcon.dataset.category;
+        let currentBrickStatus = actualIcon.classList.contains('rejected-icon') ? 'rejected' :
+                                  actualIcon.classList.contains('selected-icon') ? 'selected' : 'grey';
+        const selection = allSelections.find(sel => sel.text === currentText && sel.status === currentBrickStatus);
+        if (selection) {
+            let newStatus = currentBrickStatus;
+            let newClass = actualIcon.className.replace(' darkened', '').replace('darkened', '');
+            let nextTooltip = actualIcon.dataset.tooltip;
+            if (currentContainerId === 'rejected-container' || currentContainerId === 'selected-container') {
+                actualIcon.classList.toggle('darkened');
+                const selection = allSelections.find(sel => sel.text === currentText);
+if (selection) selection.darkened = actualIcon.classList.contains('darkened');
+            } else if (currentContainerId === 'neither-container') {
+                actualIcon.classList.remove('darkened');
+                if (currentBrickStatus === 'grey') {
+                    newStatus = 'selected';
+                    newClass = 'selected-icon';
+                    selectedSelections[currentCategory] = (selectedSelections[currentCategory] || 0) + 1;
+                    nextTooltip = currentText;
+                } else if (currentBrickStatus === 'selected') {
+                    newStatus = 'rejected';
+                    newClass = 'rejected-icon';
+                    selectedSelections[currentCategory] = (selectedSelections[currentCategory] || 0) - 1;
+                    rejectedSelections[currentCategory] = (rejectedSelections[currentCategory] || 0) + 1;
+                    nextTooltip = currentOpposite;
+                } else if (currentBrickStatus === 'rejected') {
+                    newStatus = 'grey';
+                    newClass = 'neither-icon';
+                    rejectedSelections[currentCategory] = (rejectedSelections[currentCategory] || 0) - 1;
+                    nextTooltip = currentText;
+                }
+                selection.status = newStatus;
+                selection.darkened = false;
+                actualIcon.className = newClass;
+                const oldTooltip = actualIcon.querySelector('.tooltip');
+                if (oldTooltip) actualIcon.removeChild(oldTooltip);
+                const newTooltipElem = document.createElement('div');
+                newTooltipElem.className = 'tooltip';
+                newTooltipElem.textContent = nextTooltip;
+                actualIcon.appendChild(newTooltipElem);
+            }
+        }
+    }, { once: false });
+    requestAnimationFrame(() => {
+        const targetRect = actualIcon.getBoundingClientRect();
+        requestAnimationFrame(() => {
+            frontClone.style.left = targetRect.left + 'px';
+            frontClone.style.top = targetRect.top + 'px';
+            frontClone.style.width = targetRect.width + 'px';
+            frontClone.style.height = targetRect.height + 'px';
+            frontClone.style.opacity = '0';
+        });
+    });
+    frontClone.addEventListener('transitionend', () => {
+        document.body.removeChild(frontClone);
+        actualIcon.style.visibility = 'visible';
+        console.log(`animateCardToContainer: ${iconClass} made visible in ${containerId}`);
+        if (callback) callback();
+    }, { once: true });
+}
+function addNeitherIcon(text, opposite, category) {
+    const icon = document.createElement('div');
+    icon.className = 'neither-icon';
+    icon.dataset.tooltip = text;
+    icon.dataset.opposite = opposite;
+    icon.dataset.category = category;
+    icon.dataset.text = text;
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = text;
+    icon.appendChild(tooltip);
+    icon.addEventListener('click', () => {
+        icon.classList.toggle('marked');
+    });
+    document.getElementById('neither-container').appendChild(icon);
+    allSelections.push({ text, category, status: 'grey' });
+}
+function startUpdatePhase() {
+    // Removed - directly go to results
+    document.getElementById('game-container').style.display = 'none';
+    displayResults();
+}
+    function bigIntToBase(n, base, digits) {
+    if (n === 0n) return digits[0].repeat(ENCODED_DIGITS);
+    let result = [];
+    let temp = n;
+    for (let i = 0; i < ENCODED_DIGITS; i++) {
+        const digit = Number(temp % base);
+        console.log(`Digit ${i}: ${digit}, Char: ${digits[digit]}`);
+        result.push(digits[digit]);
+        temp = temp / base;
+    }
+    return result.reverse().join('');
+}
+function displayResults() {
+    const resultsContainer = document.getElementById('results-container');
+    resultsContainer.style.display = 'flex';
+    resultsContainer.innerHTML = RESULTS_HTML;
+    const copyButton = document.getElementById('copy-button');
+    copyButton.style.display = 'block';
+    const base58Digits = BASE58_DIGITS;
+    const maxDescriptorLength = Math.max(...categoryData.map(({descriptor}) => descriptor.length));
+    const scores = questionsData.map((line, index) => {
+    const [question, , category] = line.split('|').map(s => s.trim());
+    const trimmedQuestion = question.trim();
+    const selection = allSelections.find(sel => sel.text.trim() === trimmedQuestion && sel.category === category.trim());
+    let score;
+    if (selection) {
+        if (selection.status === 'rejected') { //green
+            score = selection.darkened ? 0 : 1;
+        } else if (selection.status === 'selected') { //orange
+            score = selection.darkened ? 4 : 3;
+        } else {
+            score = 2;
+        }
+    } else {
+        score = 2;
+    }
+    console.log(`Encode Question ${index + 1}: "${trimmedQuestion}", Category: ${category}, Selection:`, selection, `Score: ${score}`);
+    return score;
+});
+console.log('Raw scores array (0-4 per question):', scores);
+console.log('Encoded scores:', scores);
+const categoryScores = {};
+questionsData.forEach((line, index) => {
+    const [ , , category ] = line.split('|').map(s => s.trim());
+    if (!categoryScores[category]) {
+        categoryScores[category] = { sumMarks: 0, totalQuestions: 0 };
+    }
+categoryScores[category].totalQuestions++;
+let points = 0;
+if (scores[index] !== undefined) {
+  const rating = scores[index] + 1; // 1-5 agreement with first statement (item)
+  const itemNum = index + 1;
+  const isReversed = REVERSED_ITEMS.has(itemNum);
+  const score_val = isReversed ? 6 - rating : rating;
+  points = score_val - 1; // 0-4 normalized for percentage
+  console.log(`Item ${itemNum} (cat: ${category}): raw_score=${scores[index]}, rating=${rating}, reversed=${isReversed}, score_val=${score_val}, points=${points}`);
+}
+categoryScores[category].sumMarks += points;
+});
+const sortedByGroup = categoryData.reduce((acc, {group, category, descriptor, total}) => {
+    const { sumMarks, totalQuestions } = categoryScores[category] || { sumMarks: 0, totalQuestions: total };
+    const maxMarks = 4 * totalQuestions;
+    const percentage = Math.round((sumMarks / maxMarks) * 100);
+    if (!acc[group]) acc[group] = [];
+    acc[group].push({category, descriptor, percentage, total});
+    return acc;
+}, {});
+const barChart = ['HOH', 'EMS', 'EXT', 'AGR', 'CON', 'OTE', 'ALT'].flatMap(group => {
+    const categories = sortedByGroup[group].sort((a, b) => b.percentage - a.percentage);
+    return categories.map(({descriptor, percentage}) => {
+        const stars = '*'.repeat(Math.round(percentage / 10));
+        const paddedDescriptor = descriptor.padEnd(maxDescriptorLength, ' ');
+        return `${paddedDescriptor}: ${stars} (${percentage}%)`;
+    });
+}).join('\n');
+let number = BigInt(0);
+for (let i = 0; i < scores.length; i++) {
+    number = number * BigInt(5) + BigInt(scores[i]);
+}
+    console.log('Input number to bigIntToBase:', number);
+    const encoded = bigIntToBase(number, BASE, base58Digits);
+    if (encoded.length !== ENCODED_DIGITS) {
+        console.error('Encoded string length invalid:', encoded.length);
+        resultsContainer.querySelector('pre').innerHTML = 'Error: Invalid encoded string length';
+        return;
+    }
+    for (let char of encoded) {
+        if (base58Digits.indexOf(char) === -1) {
+            console.error('Invalid character in encoded string:', char);
+            resultsContainer.querySelector('pre').innerHTML = 'Error: Invalid character in encoded string';
+            return;
+        }
+    }
+    let sum = 0n;
+    for (let char of encoded) {
+        sum += BigInt(base58Digits.indexOf(char));
+    }
+    const checksum = Number(sum % BASE);
+    console.log('Encoded checksum:', checksum, 'Checksum character:', base58Digits[checksum]);
+    const resultString = encoded + base58Digits[checksum];
+    console.log('Encoded resultString:', resultString);
+    if (resultString.length !== FINAL_LENGTH) {
+        console.error('Final result string length invalid:', resultString.length);
+        resultsContainer.querySelector('pre').innerHTML = 'Error: Invalid final result string length';
+        return;
+    }
+let formattedResult = '';
+const lineLength = 31;
+for (let l = 0; l < Math.ceil(FINAL_LENGTH / lineLength); l++) {
+    let line = resultString.substring(l * lineLength, (l + 1) * lineLength);
+    let pos = 0;
+    let formattedLine = '';
+    const groupSizes = [7, 6, 6, 6, 6];
+    for (const size of groupSizes) {
+        if (pos >= line.length) break;
+        formattedLine += line.substring(pos, Math.min(pos + size, line.length)) + ' ';
+        pos += size;
+    }
+    formattedResult += formattedLine.trim() + '\n';
+}
+formattedResult = formattedResult.trim();
+    const outputText = barChart + '\n\nResult Sequence:\n' + formattedResult;
+    resultsContainer.querySelector('pre').innerHTML = outputText;
+    copyButton.onclick = () => {
+        navigator.clipboard.writeText(outputText).then(() => {
+            alert(COPY_SUCCESS_MESSAGE);
+        }).catch(err => {
+            console.error('Failed to copy results:', err);
+            alert(COPY_FAIL_MESSAGE);
+        });
+    };
+}
+function displaySet() {
+    console.log('displaySet called, allSelections.length:', allSelections.length, 'remainingQuestionsByCategory:', remainingQuestionsByCategory, 'progressContainer.children.length:', progressContainer.children.length);
+    // Line before the end-of-phase check
+    console.log('Before end check, allSelections.length:', allSelections.length, 'remainingQuestionsByCategory:', remainingQuestionsByCategory, 'progressContainer.children.length:', progressContainer.children.length);
+    // Check if all 232 questions are selected, no more sets are available, or all progress icons are used
+    if (allSelections.length >= TOTAL_QUESTIONS || (remainingQuestionsByCategory && Object.values(remainingQuestionsByCategory).every(cat => cat.length === 0)) || progressContainer.children.length === 0) {
+        console.log('After end check, condition met:', allSelections.length >= TOTAL_QUESTIONS || (remainingQuestionsByCategory && Object.values(remainingQuestionsByCategory).every(cat => cat.length === 0)) || progressContainer.children.length === 0, 'allSelections.length:', allSelections.length, 'remainingQuestionsByCategory empty:', Object.values(remainingQuestionsByCategory).every(cat => cat.length === 0), 'progressContainer.children.length:', progressContainer.children.length);
+        console.log('End of card phase detected, preparing to transition, allSelections.length:', allSelections.length, 'progressContainer.children.length:', progressContainer.children.length);
+        const availableQuestions = [];
+        for (const category in remainingQuestionsByCategory) {
+            availableQuestions.push(...remainingQuestionsByCategory[category].map(q => ({ text: q.question, opposite: q.opposite, category })));
+        }
+if (availableQuestions.length > 0 && availableQuestions.length < CARDS_PER_SET) {
+            console.log('Handling remaining questions:', availableQuestions.length);
+            availableQuestions.forEach(q => {
+                allSelections.push({ text: q.text, category: q.category, status: 'grey' });
+                remainingQuestionsByCategory[q.category] = remainingQuestionsByCategory[q.category].filter(r => r.question !== q.text);
+                if (progressContainer.lastChild) {
+                    progressContainer.removeChild(progressContainer.lastChild);
+                }
+            });
+            console.log('Updated allSelections.length:', allSelections.length, 'progressContainer.children.length:', progressContainer.children.length);
+        }
+        instruction.innerText = ALL_SETS_COMPLETED_INSTRUCTION;
+        cards.forEach(card => {
+            card.style.display = 'none';
+        });
+
+        document.getElementById('reverse-button').style.display = 'none';
+        document.getElementById('auto-progress').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        console.log('Initiating phase transition, calling startUpdatePhase directly');
+document.getElementById('game-container').style.display = 'none';
+displayResults();
+        console.log('startUpdatePhase called, continueButton setup to follow');
+        // Optional manual continue button as fallback
+        console.log('Setting continueButton.style.display to block, continueButton:', continueButton);
+        continueButton.style.display = 'block';
+        continueButton.style.zIndex = '1200';
+        continueButton.style.position = 'relative';
+        console.log('continueButton.style.display set to:', continueButton.style.display);
+        continueButton.addEventListener('click', () => {
+            console.log('Continue button clicked, starting update phase manually, progressContainer.children.length:', progressContainer.children.length);
+document.getElementById('game-container').style.display = 'none';
+displayResults();
+            continueButton.style.display = 'none';
+        }, { once: true });
+        console.log('Event listener attached to continueButton, continueButton:', continueButton);
+        continueButton.focus();
+        return;
+    }
+    const set = getNextSet();
+    console.log('getNextSet returned set:', set, 'allSelections.length:', allSelections.length, 'progressContainer.children.length:', progressContainer.children.length);
+    if (!set) {
+        console.log('No more sets available, triggering end of card phase, allSelections.length:', allSelections.length, 'progressContainer.children.length:', progressContainer.children.length);
+        instruction.innerText = ALL_SETS_COMPLETED_INSTRUCTION;
+        cards.forEach(card => {
+            card.style.display = 'none';
+        });
+
+        document.getElementById('reverse-button').style.display = 'none';
+        document.getElementById('auto-progress').style.display = 'none';
+        document.getElementById('game-container').style.display = 'block';
+        console.log('Initiating phase transition, calling startUpdatePhase directly');
+        startUpdatePhase(); // Direct call to ensure phase transition
+        console.log('startUpdatePhase called, continueButton setup to follow');
+        // Optional manual continue button as fallback
+        console.log('Setting continueButton.style.display to block, continueButton:', continueButton);
+        continueButton.style.display = 'block';
+        continueButton.style.zIndex = '1200';
+        continueButton.style.position = 'relative';
+        console.log('continueButton.style.display set to:', continueButton.style.display);
+        continueButton.addEventListener('click', () => {
+            console.log('Continue button clicked, starting update phase manually, progressContainer.children.length:', progressContainer.children.length);
+            startUpdatePhase();
+            continueButton.style.display = 'none';
+        }, { once: true });
+        console.log('Event listener attached to continueButton, continueButton:', continueButton);
+        continueButton.focus();
+        return;
+    }
+if (removeFromTop) {
+    if (progressContainer.firstChild) {
+        progressContainer.removeChild(progressContainer.firstChild);
+    }
+} else {
+    if (progressContainer.lastChild) {
+        progressContainer.removeChild(progressContainer.lastChild);
+    }
+}
+    removeFromTop = !removeFromTop;
+const numIcons = progressContainer.children.length;
+const numRows = Math.ceil(numIcons / 5);
+progressContainer.style.gridTemplateRows = `repeat(${numRows}, 70px)`;
+progressContainer.style.height = `calc((70px + 10px) * ${numRows} - 10px)`;
+    cards.forEach((card, index) => {
+        if (index < set.length) {
+card.classList.remove('selected-card', 'selected', 'rejected', 'grey', 'darkened');
+card.style.border = 'none';
+card.style.fontSize = '16px'; // Reset to original
+card.style.removeProperty('--dark-color');
+            card.querySelector('.front').innerText = set[index].text;
+            card.querySelector('.front').style.backgroundColor = 'var(--selected-bg)';
+            const front = card.querySelector('.front');
+            front.style.fontWeight = 'normal';
+            card.dataset.category = set[index].category;
+            card.dataset.text = set[index].text;
+            card.dataset.opposite = set[index].opposite;
+            card.dataset.state = 'unselected';
+            card.dataset.prevState = '';
+            card.style.display = 'block';
+            card.style.visibility = 'visible';
+            card.style.transform = '';
+            card.style.opacity = '1';
+            card.classList.remove('flipped', 'slide-down', 'slide-up', 'selected');
+            card.removeAttribute('title'); // Remove card tooltip
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    isFlipped = false;
+    selectionCount = 0;
+    selectedCards = [];
+    isAnimating = false;
+    instruction.innerText = CLICK_ANY_CARD;
+STRENGTHEN_INSTRUCTION.style.display = 'none';
+    document.getElementById('card-container').classList.add('selected-phase');
+    document.getElementById('reverse-button').style.display = 'none';
+    document.getElementById('reverse-button').style.backgroundColor = 'var(--rejected-bg)';
+    document.getElementById('auto-progress').style.display = 'block'; // Show auto-progress button
+    continueButton.style.display = 'none';
+}
+function flipCards() {
+    cards.forEach(card => {
+        if (card.style.display !== 'none') {
+            card.classList.add('flipped');
+            card.querySelector('.front').innerText = card.dataset.text;
+            card.querySelector('.front').style.backgroundColor = 'var(--selected-bg)';
+            card.removeAttribute('title'); // Remove card tooltip
+        }
+    });
+    isFlipped = true;
+    instruction.innerText = MSG_NO_CARDS
+    selectionCount = 0; // Reset to ensure correct count on flip
+    document.getElementById('card-container').classList.remove('rejected-phase');
+    document.getElementById('card-container').classList.add('selected-phase');
+    document.getElementById('reverse-button').style.display = 'block';
+    document.getElementById('reverse-button').style.backgroundColor = 'var(--rejected-bg)';
+    STRENGTHEN_INSTRUCTION.innerText = "Click on ANY card to select it";
+STRENGTHEN_INSTRUCTION.style.display = 'block';
+}
+        document.getElementById('continue-button').addEventListener('click', startGame, { once: true });
+function startGame() {
+    instruction.innerText = GAME_INTRO_INSTRUCTION;
+    continueButton.style.display = 'block';
+    continueButton.focus();
+    continueButton.addEventListener('click', () => {
+        continueButton.style.display = 'none';
+        instruction.innerText = BEGIN_GAME_INSTRUCTION;
+        continueButton.style.display = 'block';
+        continueButton.focus();
+        continueButton.addEventListener('click', () => {
+            continueButton.style.display = 'none'; // Ensure button hides after second click
+            instruction.style.zIndex = -1; // Move instruction behind game elements
+            // Create and display blue bricks
+            for (let i = 0; i < Math.ceil(TOTAL_QUESTIONS / CARDS_PER_SET); i++) {
+                const icon = document.createElement('div');
+                icon.className = 'progress-icon';
+                icon.dataset.category = allQuestions[i].category;
+                progressContainer.appendChild(icon);
+                const existingTooltip = icon.querySelector('.tooltip');
+                if (existingTooltip) icon.removeChild(existingTooltip);
+            }
+            document.getElementById('card-container').style.display = 'flex'; // Use inline style to ensure display
+            document.getElementById('progress-container').style.display = 'grid';
+            document.getElementById('selected-container').style.display = 'flex';
+            document.getElementById('rejected-container').style.display = 'flex';
+            document.getElementById('neither-container').style.display = 'flex';
+            // Dynamically create cards and attach event listeners
+            const cardContainer = document.getElementById('card-container');
+            for (let i = 0; i < CARDS_PER_SET; i++) {
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = 'card-wrapper';
+                const card = document.createElement('div');
+                card.className = 'card';
+                const back = document.createElement('div');
+                back.className = 'back';
+                back.style.background = 'repeating-linear-gradient(60deg, #1e90ff, #1e90ff 13px, #24588c 10px, #104e8b 20px)';
+                const front = document.createElement('div');
+                front.className = 'front';
+                card.appendChild(back);
+                card.appendChild(front);
+                cardWrapper.appendChild(card);
+                cardContainer.appendChild(cardWrapper);
+                cards.push(card);
+                // Attach click event listener to each new card
+card.addEventListener('click', () => {
+    if (card.style.display === 'none') return;
+    if (!isFlipped) {
+        flipCards();
+    } else {
+        const currState = card.classList.contains('selected-card') 
+            ? (card.classList.contains('darkened') ? 'darkened' : 'selected') 
+            : 'unselected';
+        if (currState === 'unselected') {
+            if (selectionCount >= 4 || isAnimating) return;
+            isAnimating = true;
+            const isRejectPhase = document.getElementById('card-container').classList.contains('rejected-phase');
+            const status = isRejectPhase ? 'rejected' : 'selected';
+            const containerId = isRejectPhase ? 'rejected-container' : 'selected-container';
+            const iconClass = isRejectPhase ? 'rejected-icon' : 'selected-icon';
+            const text = card.dataset.text;
+            const opposite = card.dataset.opposite;
+            const category = card.dataset.category;
+            if (status === 'rejected') {
+                rejectedSelections[category] = (rejectedSelections[category] || 0) + 1;
+            } else {
+                selectedSelections[category] = (selectedSelections[category] || 0) + 1;
+            }
+            selectedCards.push({ card, status });
+            card.classList.add('selected-card', status);
+            card.style.transform = `translateY(${SELECTED_DROP_Y}) scale(${SELECTED_SCALE})`;
+            card.style.fontSize = `${16 * SELECTED_FONT_SCALE}px`;
+            card.style.border = `${BORDER_WIDTH} solid ${status === 'selected' ? 'var(--selected-border)' : 'var(--rejected-border)'}`;
+            selectionCount++;
+            const remaining = 4 - selectionCount;
+            if (remaining === 3) {
+                instruction.innerText = MSG_ONE_CARD
+            } else if (remaining === 2) {
+                instruction.innerText = MSG_TWO_CARDS
+            } else if (remaining === 1) {
+                instruction.innerText = MSG_THREE_CARDS
+            }
+            allSelections.push({ text, category, status, darkened: false });
+            STRENGTHEN_INSTRUCTION.innerText = "Click AGAIN on an already selected card to strengthen it";
+            if (selectionCount === 1) {
+                STRENGTHEN_INSTRUCTION.style.display = 'block';
+            }
+            card.dataset.prevState = 'unselected';
+            card.dataset.state = 'selected';
+            setTimeout(() => {
+                if (selectionCount === 4) {
+                    setTimeout(() => {
+                        selectedCards.forEach(({ card, status }) => {
+                            const containerId = status === 'rejected' ? 'rejected-container' : 'selected-container';
+                            const iconClass = status === 'rejected' ? 'rejected-icon' : 'selected-icon';
+                            const text = card.dataset.text;
+                            const opposite = card.dataset.opposite;
+                            const category = card.dataset.category;
+                            card.style.visibility = 'hidden';
+                            animateCardToContainer(card, containerId, iconClass, text, opposite, category, () => {}, card.classList.contains('darkened'));
+                        });
+                        const remainingCard = Array.from(cards).find(c => c.style.display !== 'none' && !c.classList.contains('selected-card'));
+                        if (remainingCard) {
+                            const neitherText = remainingCard.dataset.text;
+                            const neitherOpposite = remainingCard.dataset.opposite;
+                            const neitherCategory = remainingCard.dataset.category;
+                            remainingCard.classList.add('selected-card', 'grey');
+                            remainingCard.style.transform = `translateY(${SELECTED_DROP_Y}) scale(${SELECTED_SCALE})`;
+                            remainingCard.style.fontSize = `${16 * SELECTED_FONT_SCALE}px`;
+                            setTimeout(() => {
+                                remainingCard.style.visibility = 'hidden';
+                                animateCardToContainer(remainingCard, 'neither-container', 'neither-icon', neitherText, neitherOpposite, neitherCategory, () => {
+                                    currentSetIndex++;
+                                    displaySet();
+                                });
+                            }, SELECTED_DROP_DELAY);
+                            allSelections.push({ text: neitherText, category: neitherCategory, status: 'grey', darkened: false });
+                        } else {
+                            currentSetIndex++;
+                            displaySet();
+                        }
+                        selectedCards = [];
+                        STRENGTHEN_INSTRUCTION.style.display = 'none';
+                    }, SELECTED_DROP_DELAY);
+                } else {
+ 
+
+                    document.getElementById('reverse-button').style.display = (CARDS_PER_SET - selectionCount) >= 2 ? 'block' : 'none';
+                    document.getElementById('reverse-button').style.backgroundColor = isRejectPhase ? 'var(--selected-bg)' : 'var(--rejected-bg)';
+                    isAnimating = false;
+                }
+            }, 300);
+        } else {
+            const prevState = card.dataset.prevState || 'unselected';
+            let newState;
+            if (prevState === 'unselected' && currState === 'selected') {
+                newState = 'darkened';
+            } else if (prevState === 'selected' && currState === 'darkened') {
+                newState = 'selected';
+            } else if (prevState === 'darkened' && currState === 'selected') {
+                newState = 'unselected';
+            } else {
+                newState = currState === 'darkened' ? 'selected' : 'darkened';
+            }
+if (newState === 'unselected') {
+    unselectCard(card);
+    STRENGTHEN_INSTRUCTION.innerText = "Click on ANY card to select it";
+    return;
+}
+const front = card.querySelector('.front');
+const status = card.classList.contains('selected') ? 'selected' : 'rejected';
+const isSelected = status === 'selected';
+const regularColor = isSelected ? 'var(--selected-bg)' : 'var(--rejected-bg)';
+const darkColor = isSelected ? 'var(--darkened-selected-bg)' : 'var(--darkened-rejected-bg)';
+const selection = allSelections.find(sel => sel.text === card.dataset.text);
+if (newState === 'darkened') {
+    card.classList.add('darkened');
+    front.style.setProperty('background-color', darkColor, 'important');
+    front.style.fontWeight = 'bold';
+    if (selection) selection.darkened = true;
+} else if (newState === 'selected') {
+    card.classList.remove('darkened');
+    front.style.setProperty('background-color', regularColor, 'important');
+    front.style.fontWeight = 'normal';
+    if (selection) selection.darkened = false;
+}
+card.dataset.prevState = currState;
+card.dataset.state = newState;
+const remaining = 4 - selectionCount;
+if (remaining === 4) {
+    instruction.innerText = MSG_NO_CARDS
+} else if (remaining === 3) {
+    instruction.innerText = MSG_ONE_CARD
+    instruction.innerText = MSG_TWO_CARDS
+} else if (remaining === 1) {
+    instruction.innerText = MSG_THREE_CARDS
+}
+if (newState === 'darkened') {
+    STRENGTHEN_INSTRUCTION.innerText = "Click on any STRONG feeling card to soften it";
+} else if (newState === 'selected' && prevState === 'selected') {
+    STRENGTHEN_INSTRUCTION.innerText = "Click this card AGAIN to return to your hand";
+} else {
+    STRENGTHEN_INSTRUCTION.innerText = "Click AGAIN on an already selected card to strengthen it";
+}
+if (selectionCount < 4) {
+    const remaining = 4 - selectionCount;
+    if (remaining === 4) {
+        instruction.innerText = MSG_NO_CARDS;
+    } else if (remaining === 3) {
+        instruction.innerText = MSG_ONE_CARD;
+    } else if (remaining === 2) {
+        instruction.innerText = MSG_TWO_CARDS;
+    } else if (remaining === 1) {
+        instruction.innerText = MSG_THREE_CARDS;
+    }
+}
+        }
+    }
+});
+            }
+            displaySet();
+        }, { once: true });
+    }, { once: true });
+}
+       instruction.innerText = INITIAL_PROMPT;
+continueButton.style.display = 'block';
+continueButton.focus();
+
+function unselectCard(card) {
+    const index = selectedCards.findIndex(s => s.card === card);
+    if (index === -1) return;
+    const thisSelected = selectedCards.splice(index, 1)[0];
+    const status = thisSelected.status;
+    const containerId = status === 'rejected' ? 'rejected-container' : 'selected-container';
+    const container = document.getElementById(containerId);
+    selectionCount--;
+    const remaining = 4 - selectionCount;
+if (remaining === 4) {
+    instruction.innerText = MSG_NO_CARDS
+} else if (remaining === 3) {
+    instruction.innerText = MSG_ONE_CARD
+} else if (remaining === 2) {
+    instruction.innerText = MSG_TWO_CARDS
+} else if (remaining === 1) {
+    instruction.innerText = MSG_THREE_CARDS
+}
+    const text = card.dataset.text;
+    const category = card.dataset.category;
+    const selection = allSelections.find(sel => sel.text === text && sel.status === status);
+    if (selection) {
+        if (status === 'rejected') rejectedSelections[category]--;
+        else selectedSelections[category]--;
+        allSelections.splice(allSelections.indexOf(selection), 1);
+    }
+    const question = text;
+    const opposite = card.dataset.opposite;
+    remainingQuestionsByCategory[category].push({ question, opposite });
+    const brick = Array.from(container.children).find(child => child.dataset.text === text);
+    if (brick) container.removeChild(brick);
+    card.style.visibility = 'visible';
+    card.classList.remove('selected-card', status, 'darkened');
+    card.style.transform = '';
+    card.style.fontSize = '16px';
+    card.style.border = 'none';
+    card.style.removeProperty('--dark-color');
+    card.querySelector('.front').style.fontWeight = 'normal';
+    const isRejectPhase = document.getElementById('card-container').classList.contains('rejected-phase');
+    card.querySelector('.front').innerText = isRejectPhase ? opposite : text;
+    card.title = isRejectPhase ? text : opposite;
+    card.querySelector('.front').style.backgroundColor = isRejectPhase ? 'var(--rejected-bg)' : 'var(--selected-bg)';
+    const currentSetSize = Array.from(cards).filter(c => c.style.display !== 'none').length;
+    document.getElementById('reverse-button').style.display = (currentSetSize - selectionCount) >= 2 ? 'block' : 'none';
+    card.dataset.state = 'unselected';
+    card.dataset.prevState = '';
+}
+function reverseSentiment() {
+    if (isAnimating || selectionCount >= 4 || (CARDS_PER_SET - selectionCount) < 2) return;
+    const cardContainer = document.getElementById('card-container');
+    const isRejectPhase = cardContainer.classList.contains('rejected-phase');
+    cardContainer.classList.toggle('rejected-phase');
+    cardContainer.classList.toggle('selected-phase');
+    const remainingCards = Array.from(cards).filter(c => c.style.display !== 'none' && c.style.visibility !== 'hidden');
+remainingCards.forEach(card => {
+    if (!card.classList.contains('selected-card')) {
+        card.querySelector('.front').innerText = isRejectPhase ? card.dataset.text : card.dataset.opposite;
+        card.title = isRejectPhase ? card.dataset.opposite : card.dataset.text;
+        card.querySelector('.front').style.backgroundColor = isRejectPhase ? 'var(--selected-bg)' : 'var(--rejected-bg)';
+    }
+});
+    document.getElementById('reverse-button').style.backgroundColor = isRejectPhase ? 'var(--rejected-bg)' : 'var(--selected-bg)';
+    const remaining = 4 - selectionCount;
+if (remaining === 4) {
+    instruction.innerText = MSG_NO_CARDS
+} else if (remaining === 3) {
+    instruction.innerText = MSG_ONE_CARD
+} else if (remaining === 2) {
+    instruction.innerText = MSG_TWO_CARDS
+} else if (remaining === 1) {
+    instruction.innerText = MSG_THREE_CARDS
+}
+}
+cards.forEach((card, index) => {
+card.addEventListener('click', () => {
+    if (card.style.display === 'none') return;
+    if (!isFlipped) {
+        flipCards();
+    } else {
+        const currState = card.classList.contains('selected-card') 
+            ? (card.classList.contains('darkened') ? 'darkened' : 'selected') 
+            : 'unselected';
+        if (currState === 'unselected') {
+            if (selectionCount >= 4 || isAnimating) return;
+            isAnimating = true;
+            const isRejectPhase = document.getElementById('card-container').classList.contains('rejected-phase');
+            const status = isRejectPhase ? 'rejected' : 'selected';
+            const containerId = isRejectPhase ? 'rejected-container' : 'selected-container';
+            const iconClass = isRejectPhase ? 'rejected-icon' : 'selected-icon';
+            const text = card.dataset.text;
+            const opposite = card.dataset.opposite;
+            const category = card.dataset.category;
+            if (status === 'rejected') {
+                rejectedSelections[category] = (rejectedSelections[category] || 0) + 1;
+            } else {
+                selectedSelections[category] = (selectedSelections[category] || 0) + 1;
+            }
+            selectedCards.push({ card, status });
+            card.classList.add('selected-card', status);
+            card.style.transform = `translateY(${SELECTED_DROP_Y}) scale(${SELECTED_SCALE})`;
+            card.style.fontSize = `${16 * SELECTED_FONT_SCALE}px`;
+            card.style.border = `${BORDER_WIDTH} solid ${status === 'selected' ? SELECTED_BORDER : REJECTED_BORDER}`;
+            selectionCount++;
+            allSelections.push({ text, category, status, darkened: false });
+            if (selectionCount === 1) {
+                STRENGTHEN_INSTRUCTION.style.display = 'block';
+            }
+            card.dataset.prevState = 'unselected';
+            card.dataset.state = 'selected';
+            setTimeout(() => {
+                if (selectionCount === 4) {
+                    setTimeout(() => {
+                        selectedCards.forEach(({ card, status }) => {
+                            const containerId = status === 'rejected' ? 'rejected-container' : 'selected-container';
+                            const iconClass = status === 'rejected' ? 'rejected-icon' : 'selected-icon';
+                            const text = card.dataset.text;
+                            const opposite = card.dataset.opposite;
+                            const category = card.dataset.category;
+                            card.style.visibility = 'hidden';
+                            animateCardToContainer(card, containerId, iconClass, text, opposite, category, () => {}, card.classList.contains('darkened'));
+                        });
+                        const remainingCard = Array.from(cards).find(c => c.style.display !== 'none' && !c.classList.contains('selected-card'));
+                        if (remainingCard) {
+                            const neitherText = remainingCard.dataset.text;
+                            const neitherOpposite = remainingCard.dataset.opposite;
+                            const neitherCategory = remainingCard.dataset.category;
+                            remainingCard.classList.add('selected-card', 'grey');
+                            remainingCard.style.transform = `translateY(${SELECTED_DROP_Y}) scale(${SELECTED_SCALE})`;
+                            remainingCard.style.fontSize = `${16 * SELECTED_FONT_SCALE}px`;
+                            setTimeout(() => {
+                                remainingCard.style.visibility = 'hidden';
+                                animateCardToContainer(remainingCard, 'neither-container', 'neither-icon', neitherText, neitherOpposite, neitherCategory, () => {
+                                    currentSetIndex++;
+                                    displaySet();
+                                });
+                            }, SELECTED_DROP_DELAY);
+                            allSelections.push({ text: neitherText, category: neitherCategory, status: 'grey', darkened: false });
+                        } else {
+                            currentSetIndex++;
+                            displaySet();
+                        }
+                        selectedCards = [];
+                        STRENGTHEN_INSTRUCTION.style.display = 'none';
+                    }, SELECTED_DROP_DELAY);
+                } else {
+
+
+                    document.getElementById('reverse-button').style.display = (CARDS_PER_SET - selectionCount) >= 2 ? 'block' : 'none';
+                    document.getElementById('reverse-button').style.backgroundColor = isRejectPhase ? SELECTED_BG : REJECTED_BG;
+                    isAnimating = false;
+                }
+            }, 300);
+        } else {
+            const prevState = card.dataset.prevState || 'unselected';
+            let newState;
+            if (prevState === 'unselected' && currState === 'selected') {
+                newState = 'darkened';
+            } else if (prevState === 'selected' && currState === 'darkened') {
+                newState = 'selected';
+            } else if (prevState === 'darkened' && currState === 'selected') {
+                newState = 'unselected';
+            } else {
+                newState = currState === 'darkened' ? 'selected' : 'darkened';
+            }
+            if (newState === 'unselected') {
+                unselectCard(card);
+                return;
+            }
+            const front = card.querySelector('.front');
+            const status = card.classList.contains('selected') ? 'selected' : 'rejected';
+            const isSelected = status === 'selected';
+            const regularColor = isSelected ? 'var(--selected-bg)' : 'var(--rejected-bg)';
+            const darkColor = isSelected ? 'var(--darkened-selected-bg)' : 'var(--darkened-rejected-bg)';
+            const selection = allSelections.find(sel => sel.text === card.dataset.text);
+            if (newState === 'darkened') {
+                card.classList.add('darkened');
+                if (selection) selection.darkened = true;
+            } else if (newState === 'selected') {
+                card.classList.remove('darkened');
+                if (selection) selection.darkened = false;
+            }
+            card.dataset.prevState = currState;
+            card.dataset.state = newState;
+        }
+    }
+});
+});
+document.getElementById('reverse-button').addEventListener('click', reverseSentiment);
+
+const autoProgressButton = document.getElementById('auto-progress');
+autoProgressButton.addEventListener('click', () => {
+    autoProgressButton.disabled = true;
+const interval = setInterval(() => {
+    const instructionText = instruction.innerText.trim();
+    if (progressContainer.children.length <= 2) {
+        console.log('Auto Progress stopped: 2 or fewer blue boxes remaining');
+        clearInterval(interval);
+        return;
+    }
+    if (instructionText.includes('Click any card to begin') || instructionText === '') {
+        const visibleCards = Array.from(cards).filter(c => c.style.display !== 'none');
+        if (visibleCards.length > 0) visibleCards[0].click(); // Flip to start
+    } else if (instructionText.includes('pick the first card') || instructionText.includes('pick a second card') || instructionText.includes('pick another card') || instructionText.includes('Pick one more card')) {
+        const visibleCards = Array.from(cards).filter(c => c.style.display !== 'none' && c.style.visibility !== 'hidden' && !c.classList.contains('selected-card'));
+        if (visibleCards.length > 0) {
+            visibleCards[0].click(); // Select next unselected card
+        }
+    } else if (instructionText.includes("When you are ready to start click continue")) {
+        continueButton.click();
+    } else if (instructionText === BEGIN_GAME_INSTRUCTION) {
+        continueButton.click();
+    } else if (instructionText.includes("Please click on Continue")) {
+        console.log('Auto Progress: Clicking Continue button');
+        continueButton.click();
+    } else if (instructionText === ALL_SETS_COMPLETED_INSTRUCTION) {
+        clearInterval(interval);
+    }
+}, 300);
+});
+    </script>
+</body>
+</html>
