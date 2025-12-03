@@ -601,32 +601,31 @@ const CATEGORY_DATA = [
         // Color constants (orange for selected/resonant, light green for rejected)
         const BASE = BigInt(58); // Base for encoding
         const BASE58_DIGITS = '23456789ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'; // Digits for base58 encoding (excludes 0,1,l,O)
-        const INITIAL_PROMPT = `You are about to go through an interactive experience that will ask you some questions you may find very sensitive.\n
-This session is totally anonymous,
+        const INITIAL_PROMPT = `You are about to go through an interactive experience that will ask you some questions you may find sensitive.\n
+This HEXACO session is totally anonymous,
 your name is not recorded and no-one can see what you enter.\n
 At the end of the session you will get a results summary.
-This should give you insight into some of your deeper motivations and potential blockers to your learning.\n
+This should give you insight into your personality and is helpful in understanding yourself better.\n
 This can be very useful for your coach. It is up to you to forward your results at the end. If you take no action, all data is deleted\n
 To forward your results, just copy and paste your results summary at the end into an email and send it.\n
-The full session will take 20 to 30 minutes
-When you are ready to progress click continue\n\n\n\n\n\n\n\n`; // Initial prompt shown on load
+The full session will take about twenty minutes\n\n\n\n\n\n\n\n`; // Initial prompt shown on load
         const GAME_INTRO_INSTRUCTION =
-`You will soon be offered 47 card hands,
-Each hand has 5 cards,
-Each card has a statement.\n
-Choose the card that you identify with most.\n
-Try clicking 'Reverse Sentiment' to see the opposite statements.
-Play with Reversing Sentiment and choosing cards until 4 cards are chosen. You can Undo your last pick at any time.\n
-If a statement really resonates with you,
-click on an already selected card again to strengthen it.
-The 5th card in any set goes "grey" automatically (unsure)\n
-When you are ready to start click continue\n\n\n\n\n\n`; // Introduction to game mechanics
-const MSG_NO_CARDS = "Choose 4 cards, pick the first card most like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
-const MSG_ONE_CARD = "Choose 3 more cards, pick a second card that is like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
-const MSG_TWO_CARDS = "Two more cards to select, pick another card that resembles you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
-const MSG_THREE_CARDS = "Pick one more card, the remaining card will be unselected\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+`You will soon be offered 20 card hands,
+Each hand has 5 cards.\n
+Each card has a statement.
+Try clicking 'Reverse Sentiment' to see the opposite statement.\n
+Choose the card most like you. 
+If you feel more strongly about a particular card, 
+click the card again to strengthen it.\n
+You can click an already selected card to return it to the pack\n
+The 5th card in any set goes "grey" automatically, 
+you can click on its grey brick to change it\n\n\n\n\n\n`; // Introduction to game mechanics
+const MSG_NO_CARDS = "Choose 4 cards        Pick the first card  MOST  like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+const MSG_ONE_CARD = "Choose 3 more cards    pick another card that is like you\n\n(if none then reverse sentiment for better options)\n\n\n\n";
+const MSG_TWO_CARDS = "Two more cards to select   pick a third   or flip them over!\n\n(click on reverse sentiment to see the opposite view)\n\n\n\n";
+const MSG_THREE_CARDS = "Pick one more card, the remaining card will be unselected\n\n\n\n\n\n";
         const BEGIN_GAME_INSTRUCTION = "Click continue to begin the game"; // Prompt after intro
-        const CLICK_ANY_CARD = " Click any card to begin\n\n\n\n"; // Prompt to start selecting
+        const CLICK_ANY_CARD = " Click any card to begin\n\n(mouseover --> then click on bricks to change selections from previous hands)\n\n"; // Prompt to start selecting
         const ALL_SETS_COMPLETED_INSTRUCTION = "All sets completed! Click Continue to proceed to the next phase."; // End of selection phase
         const UPDATE_RED_INSTRUCTION = "You have completed the first phase of the game.\nYou likely had to choose some cards (both red and green) that you felt more strongly than others.The grey cards were what was left, probably most of these are in-between.\n\nThe next section lets you change some of those cards.\n\nWhen you click below, a 2 minute timer will appear.\n\nYou can now hover your mouse over any red card, you will see the statement you chose. You can click to strengthen that card (darker red) or to weaken it (grey).\n\nYou can click as many bricks as you like during the 2 minute period.\nPlease click on Continue when you are ready."; // Instruction for red update phase
         const UPDATE_GREEN_INSTRUCTION = "Thank you for updating your red bricks.\nNow please update your green bricks in the same way.\n\nEach green brick represents a card you have chosen that resonates with you. If you want to change your choice, click to change to red -- or grey if not sure.\n\nPlease click on Continue when you are ready."; // Instruction for green update phase
